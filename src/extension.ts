@@ -58,7 +58,7 @@ const readAndTransformText = (editor : vscode.TextEditor, expandDefines : boolea
 
 // get output of the processor and remove include/pragma comment
 const getProcessedOutput = async (text : string, flagsArr : string[], expandDefines : boolean) : Promise<string> => {
-	const child = spawn('g++-13', ['-C', '-E', '-P', ...flagsArr, '-', '-o-']);
+	const child = spawn('g++', ['-C', '-E', '-P', ...flagsArr, '-', '-o-']);
 	child.stdin.write(text);
 	child.stdin.end();
 	const preprocessorOutput = await new Response(child.stdout).text();
