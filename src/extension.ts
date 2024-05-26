@@ -36,13 +36,17 @@ const scanFlagsFromText = (text : string) : string[] => {
 // reads text from given editor and transforms includes and pragmas
 const readAndTransformText = (editor : vscode.TextEditor, expandDefines : boolean) : string => {
 	// checks if the statement is an include or pragma statement
-	const isIncludeOrPragmaStatement = (line : string) : boolean => {
+	const isIgnorablePreprocessorDirective = (line : string) : boolean => {
 		line = line.trim();
 		if(!line.startsWith('#')){
 			return false;
 		}
 		line = line.slice(1).trim();
-		return line.startsWith('include') || line.startsWith('pragma') || (line.startsWith('define') && !expandDefines);
+		return line.startsWith('include') ||
+				line.startsWith('pragma') || (
+					(line.startsWith('define') || line.startsWith('undef')) &&
+					!expandDefines
+				);
 	};
 	const lineEndsAtBackslash = (line : string) : boolean => {
 		line = line.trim();
@@ -51,7 +55,7 @@ const readAndTransformText = (editor : vscode.TextEditor, expandDefines : boolea
 	return editor.document
 			.getText()
 			.split('\n')
-			.map((line) => !isIncludeOrPragmaStatement(line) ? line : flagViewerPrefix.concat(line))
+			.map((line) => !isIgnorablePreprocessorDirective(line) ? line : flagViewerPrefix.concat(line))
 			.map((line) => (lineEndsAtBackslash(line) && !expandDefines) ? line.concat(flagViewerSuffix): line)
 			.join('\n');
 };
