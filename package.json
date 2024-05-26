@@ -14,8 +14,12 @@
   "contributes": {
     "commands": [
       {
-        "command": "flagviewer.helloWorld",
-        "title": "Hello World"
+        "command": "flagviewer.viewWithFlags",
+        "title": "FlagViewer: View With Flags"
+      },
+      {
+        "command": "flagviewer.viewWithFlagsExpandDefines",
+        "title": "FlagViewer: View With Flags (and expand #define macro definitions)"
       }
     ]
   },
