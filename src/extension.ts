@@ -78,6 +78,7 @@ const getProcessedOutput = async (text : string, flagsArr : string[], expandDefi
 const getFlagsFromInput = async (scannedFlags : string[]) : Promise<string[]> => {
 	const flagPickerInput = await vscode.window.showQuickPick(
 		scannedFlags, {
+			ignoreFocusOut : true,
 			canPickMany : true,
 			title : "FlagViewer",
 			placeHolder: "Choose relevant flags from the list and press Enter",
