@@ -2,7 +2,8 @@
   "name": "flagviewer",
   "displayName": "FlagViewer",
   "description": "Use C++ Preprocessor to easily read code with a lot of flags",
-  "version": "1.0.0",
+  "version": "1.1.0",
+  "publisher": "Utkarsh Gupta",
   "engines": {
     "vscode": "^1.89.0"
   },

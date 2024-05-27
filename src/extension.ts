@@ -86,19 +86,20 @@ const getFlagsFromInput = async (scannedFlags : string[]) : Promise<string[]> =>
 	if(flagPickerInput === undefined){
 		return undefined as unknown as string[];
 	}
-	const extraFlagsInput = await vscode.window.showInputBox({
-		ignoreFocusOut: true,
-		placeHolder: "(ex: FLAG_A,FLAG_B)",
-		prompt: "Write a list of comma-separated flags not in the previous list",
-		title : "FlagViewer",
-	});
-	if(extraFlagsInput === undefined){
-		return undefined as unknown as string[];
-	}
-	const flagsArr = extraFlagsInput
-						.split(',')
-						.filter((e) => e !== '')
-						.concat(flagPickerInput)
+	// const extraFlagsInput = await vscode.window.showInputBox({
+	// 	ignoreFocusOut: true,
+	// 	placeHolder: "(ex: FLAG_A,FLAG_B)",
+	// 	prompt: "Write a list of comma-separated flags not in the previous list",
+	// 	title : "FlagViewer",
+	// });
+	// if(extraFlagsInput === undefined){
+	// 	return undefined as unknown as string[];
+	// }
+	// const flagsArr = extraFlagsInput
+	// 					.split(',')
+	// 					.filter((e) => e !== '')
+	// 					.concat(flagPickerInput)
+	const flagsArr = flagPickerInput
 						.map((e) => `-D${e}`);
 	return flagsArr;
 };
@@ -113,7 +114,7 @@ const getGitRevisionFromInput = async (fileUri : vscode.Uri) : Promise<string> =
 	);
 	const gitRefs = (await new Response(child.stdout).text()).split('\n');
 	const pickedItem = await vscode.window.showQuickPick(
-		gitRefs, {
+		['HEAD', ...gitRefs], {
 			title : "FlagViewer",
 			placeHolder: "Choose a git revision to compare with",
 		},
