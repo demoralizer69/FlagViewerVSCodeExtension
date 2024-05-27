@@ -61,7 +61,7 @@ const transformText = (text : string, expandDefines : boolean) : string => {
 
 // get output of the processor and remove include/pragma comment
 const getProcessedOutput = async (text : string, flagsArr : string[], expandDefines : boolean) : Promise<string> => {
-	const child = spawn('g++', ['-C', '-E', '-P', ...flagsArr, '-', '-o-']);
+	const child = spawn('g++', ['-x', 'c++', '-C', '-E', '-P', ...flagsArr, '-', '-o-']);
 	child.stdin.write(text);
 	child.stdin.end();
 	const preprocessorOutput = await new Response(child.stdout).text();
