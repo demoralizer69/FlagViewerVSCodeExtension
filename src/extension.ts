@@ -138,7 +138,7 @@ const getFileTextFromRevision = async (gitRef : string, fileUri : vscode.Uri) : 
 };
 
 // open a vscode compare with the given uri and text
-const openVSCodeCompareWithText = (context : vscode.ExtensionContext, fileUri : vscode.Uri, text : string) => {
+const openVSCodeCompareWithText = async (context : vscode.ExtensionContext, fileUri : vscode.Uri, text : string) => {
 	const myProvider = new (class implements vscode.TextDocumentContentProvider {
 		provideTextDocumentContent(uri: vscode.Uri): string {
 			return text;
@@ -148,12 +148,12 @@ const openVSCodeCompareWithText = (context : vscode.ExtensionContext, fileUri : 
 	context.subscriptions.push(registration);
 	const fileName = fileUri.path.split('/').at(-1);
 	const flagViewerUri = vscode.Uri.parse(`flag-view://${fileUri.path}`);
-	vscode.commands.executeCommand("vscode.diff", fileUri, flagViewerUri, `FlagViewer: ${fileName}`);
+	await vscode.commands.executeCommand("vscode.diff", fileUri, flagViewerUri, `FlagViewer: ${fileName}`);
 	vscode.commands.executeCommand("workbench.action.keepEditor");
 };
 
 // open a vscode compare between two texts
-const openVSCodeCompareBetweenTexts = (context : vscode.ExtensionContext, fileUri : vscode.Uri, textCurrent : string, textRef : string) => {
+const openVSCodeCompareBetweenTexts = async (context : vscode.ExtensionContext, fileUri : vscode.Uri, textCurrent : string, textRef : string) => {
 	const myProvider = new (class implements vscode.TextDocumentContentProvider {
 		provideTextDocumentContent(uri: vscode.Uri): string {
 			return uri.authority === 'current' ? textCurrent : textRef;
@@ -164,7 +164,7 @@ const openVSCodeCompareBetweenTexts = (context : vscode.ExtensionContext, fileUr
 	const fileName = fileUri.path.split('/').at(-1);
 	const textUriCurrent = vscode.Uri.parse(`flag-view://current/${fileUri.path}`);
 	const textUriRef = vscode.Uri.parse(`flag-view://ref/${fileUri.path}`);
-	vscode.commands.executeCommand("vscode.diff", textUriCurrent, textUriRef, `FlagViewer: ${fileName}`);
+	await vscode.commands.executeCommand("vscode.diff", textUriCurrent, textUriRef, `FlagViewer: ${fileName}`);
 	vscode.commands.executeCommand("workbench.action.keepEditor");
 };
 
