@@ -20,6 +20,10 @@
       {
         "command": "flagviewer.viewWithFlagsExpandDefines",
         "title": "FlagViewer: View With Flags (and expand #define macro definitions)"
+      },
+      {
+        "command": "flagviewer.viewGitDiffWithFlags",
+        "title": "FlagViewer: View git diff with revision of current file with flags"
       }
     ]
   },

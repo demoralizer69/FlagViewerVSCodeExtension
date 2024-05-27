@@ -34,7 +34,7 @@ const scanFlagsFromText = (text : string) : string[] => {
 };
 
 // reads text from given editor and transforms includes and pragmas
-const readAndTransformText = (editor : vscode.TextEditor, expandDefines : boolean) : string => {
+const transformText = (text : string, expandDefines : boolean) : string => {
 	// checks if the statement is an include or pragma statement
 	const isIgnorablePreprocessorDirective = (line : string) : boolean => {
 		line = line.trim();
@@ -52,8 +52,7 @@ const readAndTransformText = (editor : vscode.TextEditor, expandDefines : boolea
 		line = line.trim();
 		return line.endsWith('\\');
 	};
-	return editor.document
-			.getText()
+	return text
 			.split('\n')
 			.map((line) => !isIgnorablePreprocessorDirective(line) ? line : flagViewerPrefix.concat(line))
 			.map((line) => (lineEndsAtBackslash(line) && !expandDefines) ? line.concat(flagViewerSuffix): line)
@@ -104,11 +103,44 @@ const getFlagsFromInput = async (scannedFlags : string[]) : Promise<string[]> =>
 	return flagsArr;
 };
 
+const getGitRevisionFromInput = async (fileUri : vscode.Uri) : Promise<string> => {
+	const fileDir = fileUri.path.split('/').slice(0,-1).join('/');
+
+	const child = spawn(
+		'git',
+		['rev-list', '--all', '--pretty=oneline', '--abbrev=40'],
+		{cwd : fileDir},
+	);
+	const gitRefs = (await new Response(child.stdout).text()).split('\n');
+	const pickedItem = await vscode.window.showQuickPick(
+		gitRefs, {
+			title : "FlagViewer",
+			placeHolder: "Choose a git revision to compare with",
+		},
+	);
+	if(pickedItem === undefined){
+		return undefined as unknown as string;
+	}
+	const chosenGitRef = pickedItem.slice(0,40);
+	return chosenGitRef;
+};
+
+const getFileTextFromRevision = async (gitRef : string, fileUri : vscode.Uri) : Promise<string> => {
+	const fileDir = fileUri.path.split('/').slice(0,-1).join('/');
+	const fileName = fileUri.path.split('/').at(-1);
+	const child = spawn(
+		'git',
+		['show', `${gitRef}:./${fileName}`],
+		{cwd : fileDir},
+	);
+	return new Response(child.stdout).text();
+};
+
 // open a vscode compare with the given uri and text
 const openVSCodeCompareWithText = (context : vscode.ExtensionContext, fileUri : vscode.Uri, text : string) => {
 	const myProvider = new (class implements vscode.TextDocumentContentProvider {
 		provideTextDocumentContent(uri: vscode.Uri): string {
-		  return text;
+			return text;
 		}
 	})();
 	const registration = vscode.workspace.registerTextDocumentContentProvider(`flag-view`, myProvider);
@@ -116,6 +148,22 @@ const openVSCodeCompareWithText = (context : vscode.ExtensionContext, fileUri : 
 	const fileName = fileUri.path.split('/').at(-1);
 	const flagViewerUri = vscode.Uri.parse(`flag-view://${fileUri.path}`);
 	vscode.commands.executeCommand("vscode.diff", fileUri, flagViewerUri, `FlagViewer: ${fileName}`);
+	vscode.commands.executeCommand("workbench.action.keepEditor");
+};
+
+// open a vscode compare between two texts
+const openVSCodeCompareBetweenTexts = (context : vscode.ExtensionContext, fileUri : vscode.Uri, textCurrent : string, textRef : string) => {
+	const myProvider = new (class implements vscode.TextDocumentContentProvider {
+		provideTextDocumentContent(uri: vscode.Uri): string {
+			return uri.authority === 'current' ? textCurrent : textRef;
+		}
+	})();
+	const registration = vscode.workspace.registerTextDocumentContentProvider(`flag-view`, myProvider);
+	context.subscriptions.push(registration);
+	const fileName = fileUri.path.split('/').at(-1);
+	const textUriCurrent = vscode.Uri.parse(`flag-view://current/${fileUri.path}`);
+	const textUriRef = vscode.Uri.parse(`flag-view://ref/${fileUri.path}`);
+	vscode.commands.executeCommand("vscode.diff", textUriCurrent, textUriRef, `FlagViewer: ${fileName}`);
 	vscode.commands.executeCommand("workbench.action.keepEditor");
 };
 
@@ -127,7 +175,7 @@ const viewWithFlagsCommandHandler = async (context : vscode.ExtensionContext, ex
 		return;
 	}
 	const docUri = editor.document.uri;
-	const transformedText = readAndTransformText(editor, expandDefines);
+	const transformedText = transformText(editor.document.getText(), expandDefines);
 
 	// --- get flags from input boxes ---
 	const flagsArr = await getFlagsFromInput(scanFlagsFromText(transformedText));
@@ -142,6 +190,28 @@ const viewWithFlagsCommandHandler = async (context : vscode.ExtensionContext, ex
 	openVSCodeCompareWithText(context, docUri, processedOutput);
 };
 
+const viewGitDiffWithFlagsCommandHandler = async (context : vscode.ExtensionContext, expandDefines : boolean) => {
+	// --- get file text from the active editor ---
+	const editor = vscode.window.activeTextEditor;
+	if(editor === undefined){
+		return;
+	}
+	const docUri = editor.document.uri;
+	const transformedText = transformText(editor.document.getText(), expandDefines);
+
+	// --- get git hash from input ---
+	const gitRef = await getGitRevisionFromInput(docUri);
+	if(gitRef === undefined){
+		return;
+	}
+	const oldFileText = await getFileTextFromRevision(gitRef, docUri);
+	const transformedOldText = transformText(oldFileText, expandDefines);
+	const flagsArr = await getFlagsFromInput(scanFlagsFromText(transformedText));
+	const processedText = await getProcessedOutput(transformedText, flagsArr, expandDefines);
+	const processedOldText = await getProcessedOutput(transformedOldText, flagsArr, expandDefines);
+	openVSCodeCompareBetweenTexts(context, docUri, processedText, processedOldText);
+};
+
 // this function is called when the extension is initially activated
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Extension "flagviewer" is now active!');
@@ -154,6 +224,11 @@ export function activate(context: vscode.ExtensionContext) {
 	const viewWithFlagsExpandDefinesDisposable = vscode.commands.registerCommand(
 		'flagviewer.viewWithFlagsExpandDefines',
 		async () => viewWithFlagsCommandHandler(context, true),
+	);
+
+	const viewGitDiffWithFlagsDisposable = vscode.commands.registerCommand(
+		'flagviewer.viewGitDiffWithFlags',
+		async () => viewGitDiffWithFlagsCommandHandler(context, true),
 	);
 
 	context.subscriptions.push(viewWithFlagsDisposable, viewWithFlagsExpandDefinesDisposable);
