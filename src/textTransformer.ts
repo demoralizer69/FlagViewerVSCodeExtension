@@ -12,6 +12,9 @@ export const transformText = (text : string, expandDefines : boolean) : string =
 	// checks if the statement is an include or pragma statement
 	const isIgnorablePreprocessorDirective = (line : string) : boolean => {
 		line = line.trim();
+		if(line === '') {
+			return true;
+		}
 		if(!line.startsWith('#')){
 			return false;
 		}
