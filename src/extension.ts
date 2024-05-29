@@ -1,13 +1,8 @@
 import * as vscode from 'vscode';
 import { spawn } from 'child_process';
-
-/**
- * all #include and #pragma statements are prepended this before
- * going into the preprocessor and then this is removed
- * from the output.
- */
-const flagViewerPrefix = "//__FLAGVIEWER_COMMENT_PREFIX__//";
-const flagViewerSuffix = "//__FLAGVIEWER_COMMENT_SUFFIX__//";
+import { transformText, getProcessedOutput} from './textTransformer';
+import DynamicFlagViewProvider from './dynamicFlagViewProvider';
+import { openVSCodeCompareBetweenTexts, openVSCodeCompareBetweenUris } from './vscodeCompareUtils';
 
 /**
  * Scan a file text to find all flags in the file
@@ -31,46 +26,6 @@ const scanFlagsFromText = (text : string) : string[] => {
 		pos = end;
 	}
 	return [...new Set(flagsArr)];
-};
-
-// reads text from given editor and transforms includes and pragmas
-const transformText = (text : string, expandDefines : boolean) : string => {
-	// checks if the statement is an include or pragma statement
-	const isIgnorablePreprocessorDirective = (line : string) : boolean => {
-		line = line.trim();
-		if(!line.startsWith('#')){
-			return false;
-		}
-		line = line.slice(1).trim();
-		return line.startsWith('include') ||
-				line.startsWith('pragma') || (
-					(line.startsWith('define') || line.startsWith('undef')) &&
-					!expandDefines
-				);
-	};
-	const lineEndsAtBackslash = (line : string) : boolean => {
-		line = line.trim();
-		return line.endsWith('\\');
-	};
-	return text
-			.split('\n')
-			.map((line) => !isIgnorablePreprocessorDirective(line) ? line : flagViewerPrefix.concat(line))
-			.map((line) => (lineEndsAtBackslash(line) && !expandDefines) ? line.concat(flagViewerSuffix): line)
-			.join('\n');
-};
-
-// get output of the processor and remove include/pragma comment
-const getProcessedOutput = async (text : string, flagsArr : string[], expandDefines : boolean) : Promise<string> => {
-	const child = spawn('g++', ['-x', 'c++', '-C', '-E', '-P', ...flagsArr, '-', '-o-']);
-	child.stdin.write(text);
-	child.stdin.end();
-	const preprocessorOutput = await new Response(child.stdout).text();
-	const finalOutput = preprocessorOutput
-								.split('\n')
-								.map((line) => line.startsWith(flagViewerPrefix) ? line.slice(flagViewerPrefix.length) : line)
-								.map((line) => (line.endsWith(flagViewerSuffix) && !expandDefines) ? line.slice(0,-flagViewerSuffix.length) : line)
-								.join('\n');
-	return finalOutput;
 };
 
 // use input boxes to take flags from input
@@ -137,37 +92,6 @@ const getFileTextFromRevision = async (gitRef : string, fileUri : vscode.Uri) : 
 	return new Response(child.stdout).text();
 };
 
-// open a vscode compare with the given uri and text
-const openVSCodeCompareWithText = async (context : vscode.ExtensionContext, fileUri : vscode.Uri, text : string) => {
-	const myProvider = new (class implements vscode.TextDocumentContentProvider {
-		provideTextDocumentContent(uri: vscode.Uri): string {
-			return text;
-		}
-	})();
-	const registration = vscode.workspace.registerTextDocumentContentProvider(`flag-view`, myProvider);
-	context.subscriptions.push(registration);
-	const fileName = fileUri.path.split('/').at(-1);
-	const flagViewerUri = vscode.Uri.parse(`flag-view://${fileUri.path}`);
-	await vscode.commands.executeCommand("vscode.diff", fileUri, flagViewerUri, `FlagViewer: ${fileName}`);
-	vscode.commands.executeCommand("workbench.action.keepEditor");
-};
-
-// open a vscode compare between two texts
-const openVSCodeCompareBetweenTexts = async (context : vscode.ExtensionContext, fileUri : vscode.Uri, textCurrent : string, textRef : string) => {
-	const myProvider = new (class implements vscode.TextDocumentContentProvider {
-		provideTextDocumentContent(uri: vscode.Uri): string {
-			return uri.authority === 'current' ? textCurrent : textRef;
-		}
-	})();
-	const registration = vscode.workspace.registerTextDocumentContentProvider(`flag-view`, myProvider);
-	context.subscriptions.push(registration);
-	const fileName = fileUri.path.split('/').at(-1);
-	const textUriCurrent = vscode.Uri.parse(`flag-view://current/${fileUri.path}`);
-	const textUriRef = vscode.Uri.parse(`flag-view://ref/${fileUri.path}`);
-	await vscode.commands.executeCommand("vscode.diff", textUriCurrent, textUriRef, `FlagViewer: ${fileName}`);
-	vscode.commands.executeCommand("workbench.action.keepEditor");
-};
-
 // expandDefines -> true/false
 const viewWithFlagsCommandHandler = async (context : vscode.ExtensionContext, expandDefines : boolean) => {
 	// --- get file text from the active editor ---
@@ -184,11 +108,11 @@ const viewWithFlagsCommandHandler = async (context : vscode.ExtensionContext, ex
 		return;
 	}
 
-	// --- get preprocessor output based on file text and chosen flags ---
-	const processedOutput = await getProcessedOutput(transformedText, flagsArr, expandDefines);
-
-	// --- open a vscode compare between original file and preprocessor output ---
-	openVSCodeCompareWithText(context, docUri, processedOutput);
+	openVSCodeCompareBetweenUris(
+		docUri,
+		DynamicFlagViewProvider.encode(docUri, flagsArr, expandDefines),
+		docUri.path.split('/').at(-1)
+	);
 };
 
 const viewGitDiffWithFlagsCommandHandler = async (context : vscode.ExtensionContext, expandDefines : boolean) => {
@@ -217,6 +141,12 @@ const viewGitDiffWithFlagsCommandHandler = async (context : vscode.ExtensionCont
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Extension "flagviewer" is now active!');
 
+	const providerDisposable = new DynamicFlagViewProvider();
+	const providerRegistrationDisposable = vscode.workspace.registerTextDocumentContentProvider(
+		DynamicFlagViewProvider.scheme,
+		providerDisposable,
+	);
+
 	const viewWithFlagsDisposable = vscode.commands.registerCommand(
 		'flagviewer.viewWithFlags',
 		async () => viewWithFlagsCommandHandler(context, false),
@@ -232,7 +162,13 @@ export function activate(context: vscode.ExtensionContext) {
 		async () => viewGitDiffWithFlagsCommandHandler(context, true),
 	);
 
-	context.subscriptions.push(viewWithFlagsDisposable, viewWithFlagsExpandDefinesDisposable);
+	context.subscriptions.push(
+		providerDisposable,
+		providerRegistrationDisposable,
+		viewWithFlagsDisposable,
+		viewWithFlagsExpandDefinesDisposable,
+		viewGitDiffWithFlagsDisposable,
+	);
 }
 
 // This method is called when your extension is deactivated
