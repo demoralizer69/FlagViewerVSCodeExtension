@@ -2,7 +2,7 @@
   "name": "flagviewer",
   "displayName": "FlagViewer",
   "description": "Use C++ Preprocessor to easily read code with a lot of flags",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "publisher": "Utkarsh Gupta",
   "engines": {
     "vscode": "^1.89.0"
@@ -16,11 +16,11 @@
     "commands": [
       {
         "command": "flagviewer.viewWithFlags",
-        "title": "FlagViewer: View With Flags"
+        "title": "FlagViewer: View With Flags without macro expansion (UNSAFE)"
       },
       {
         "command": "flagviewer.viewWithFlagsExpandDefines",
-        "title": "FlagViewer: View With Flags (and expand #define macro definitions)"
+        "title": "FlagViewer: View With Flags"
       },
       {
         "command": "flagviewer.viewGitDiffWithFlags",
