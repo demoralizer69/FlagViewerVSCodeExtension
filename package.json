@@ -2,16 +2,20 @@
   "name": "flagviewer",
   "displayName": "FlagViewer",
   "description": "Use C++ Preprocessor to easily read code with a lot of flags",
-  "version": "2.2.3",
+  "version": "2.3.0",
   "publisher": "demoralizer",
   "icon": "icon.png",
   "engines": {
-    "vscode": "^1.89.0"
+    "vscode": "^1.67.0"
   },
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onCommand:flagviewer.viewWithFlags",
+    "onCommand:flagviewer.viewWithFlagsExpandDefines",
+    "onCommand:flagviewer.viewGitDiffWithFlags"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -42,9 +46,9 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.89.0",
+    "@types/vscode": "^1.67.0",
     "@types/mocha": "^10.0.6",
-    "@types/node": "18.x",
+    "@types/node": "20.x",
     "@typescript-eslint/eslint-plugin": "^7.7.1",
     "@typescript-eslint/parser": "^7.7.1",
     "eslint": "^8.57.0",

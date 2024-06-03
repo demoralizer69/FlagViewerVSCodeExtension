@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import { transformText, getProcessedOutput} from './textTransformer';
-import path from 'path';
 
 export default class Provider implements vscode.TextDocumentContentProvider {
     static scheme = 'dynamic-flag-view';

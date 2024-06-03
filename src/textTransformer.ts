@@ -36,16 +36,27 @@ export const transformText = (text : string, expandDefines : boolean) : string =
 			.join('\n');
 };
 
+export const streamToString = async (stream : any) => {
+    // lets have a ReadableStream as a stream variable
+    const chunks = [];
+
+    for await (const chunk of stream) {
+        chunks.push(Buffer.from(chunk));
+    }
+
+    return Buffer.concat(chunks).toString("utf-8");
+}
+
 // get output of the processor and remove include/pragma comment
 export const getProcessedOutput = async (text : string, flagsArr : string[], expandDefines : boolean) : Promise<string> => {
 	const child = spawn('g++', ['-x', 'c++', '-C', '-E', '-P', ...flagsArr, '-', '-o-']);
 	child.stdin.write(text);
 	child.stdin.end();
-	const preprocessorOutput = await new Response(child.stdout).text();
+	const preprocessorOutput = await streamToString(child.stdout);
 	const finalOutput = preprocessorOutput
 								.split('\n')
-								.map((line) => line.startsWith(flagViewerPrefix) ? line.slice(flagViewerPrefix.length) : line)
-								.map((line) => (line.endsWith(flagViewerSuffix) && !expandDefines) ? line.slice(0,-flagViewerSuffix.length) : line)
+								.map((line : string) => line.startsWith(flagViewerPrefix) ? line.slice(flagViewerPrefix.length) : line)
+								.map((line : string) => (line.endsWith(flagViewerSuffix) && !expandDefines) ? line.slice(0,-flagViewerSuffix.length) : line)
 								.join('\n');
 	return finalOutput;
 };

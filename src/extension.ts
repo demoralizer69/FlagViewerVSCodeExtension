@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { spawn } from 'child_process';
-import { transformText, getProcessedOutput} from './textTransformer';
+import { transformText, streamToString, getProcessedOutput} from './textTransformer';
 import DynamicFlagViewProvider from './dynamicFlagViewProvider';
 import { openVSCodeCompareBetweenTexts, openVSCodeCompareBetweenUris } from './vscodeCompareUtils';
 
@@ -67,7 +67,7 @@ const getGitRevisionFromInput = async (fileUri : vscode.Uri) : Promise<string> =
 		['rev-list', '--all', '--pretty=oneline', '--abbrev=40'],
 		{cwd : fileDir},
 	);
-	const gitRefs = (await new Response(child.stdout).text()).split('\n');
+	const gitRefs = (await streamToString(child.stdout)).split('\n');
 	const pickedItem = await vscode.window.showQuickPick(
 		['HEAD', ...gitRefs], {
 			title : "FlagViewer",
@@ -89,7 +89,7 @@ const getFileTextFromRevision = async (gitRef : string, fileUri : vscode.Uri) : 
 		['show', `${gitRef}:./${fileName}`],
 		{cwd : fileDir},
 	);
-	return new Response(child.stdout).text();
+	return streamToString(child.stdout);
 };
 
 // expandDefines -> true/false
