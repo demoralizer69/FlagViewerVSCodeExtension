@@ -2,7 +2,7 @@
   "name": "flagviewer",
   "displayName": "FlagViewer",
   "description": "Use C++ Preprocessor to easily read code with a lot of flags",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "publisher": "demoralizer",
   "icon": "icon.png",
   "engines": {

@@ -51,7 +51,7 @@ export default class Provider implements vscode.TextDocumentContentProvider {
     }
 
     private static _decode(uri: vscode.Uri) : [string, string[], boolean] {
-        console.log(uri.path, uri.query.split(','), JSON.parse(uri.authority));
-        return [uri.path, uri.query.split(','), JSON.parse(uri.authority)];
+        console.log(uri.path, uri.query.split(',').filter(x=>x!==''), JSON.parse(uri.authority));
+        return [uri.path, uri.query.split(',').filter(x=>x!==''), JSON.parse(uri.authority)];
     }
 }
